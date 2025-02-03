@@ -4,10 +4,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .losses import CELoss, Criterion, SimLoss
 
+import logging
+
 
 def conv3x3(in_planes, out_planes, stride=1):
-    " 3x3 convolution with padding "
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
+    "3x3 convolution with padding"
+    return nn.Conv2d(
+        in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False
+    )
 
 
 class Bottleneck(nn.Module):
@@ -17,19 +21,26 @@ class Bottleneck(nn.Module):
         super(Bottleneck, self).__init__()
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3,
-                               stride=stride, padding=1, bias=False)
+        self.conv2 = nn.Conv2d(
+            planes, planes, kernel_size=3, stride=stride, padding=1, bias=False
+        )
         self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, self.expansion *
-                               planes, kernel_size=1, bias=False)
+        self.conv3 = nn.Conv2d(
+            planes, self.expansion * planes, kernel_size=1, bias=False
+        )
         self.bn3 = nn.BatchNorm2d(self.expansion * planes)
 
         self.shortcut = nn.Sequential()
         if stride != 1 or in_planes != self.expansion * planes:
             self.shortcut = nn.Sequential(
-                nn.Conv2d(in_planes, self.expansion * planes,
-                          kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(self.expansion * planes)
+                nn.Conv2d(
+                    in_planes,
+                    self.expansion * planes,
+                    kernel_size=1,
+                    stride=stride,
+                    bias=False,
+                ),
+                nn.BatchNorm2d(self.expansion * planes),
             )
 
     def forward(self, x):
@@ -77,8 +88,19 @@ class BasicBlock(nn.Module):
 
 
 class AuxNetwork(nn.Module):
-    def __init__(self, inplanes, net_config='1c2f', class_num=10, widen=1, feature_dim=128, hidden_dim=1024,
-                 layer_index=0, aux_net_depth=3, net_dim=None, image_size=32):
+    def __init__(
+        self,
+        inplanes,
+        net_config="1c2f",
+        class_num=10,
+        widen=1,
+        feature_dim=128,
+        hidden_dim=1024,
+        layer_index=0,
+        aux_net_depth=3,
+        net_dim=None,
+        image_size=32,
+    ):
         super(AuxNetwork, self).__init__()
 
         assert inplanes in [16, 32, 64]
@@ -88,15 +110,18 @@ class AuxNetwork(nn.Module):
         self.criterion = nn.CrossEntropyLoss()
         self.fc_out_channels = class_num
 
-        if net_config == 'PredSim':
+        if net_config == "PredSim":
             from utils.others import get_pool_layer
-            avg_pool, dim_in_decoder = get_pool_layer(inplanes, int(image_size // int(inplanes // 16)), hidden_dim)
-            self.head = nn.Sequential(
-                avg_pool,
-                nn.Flatten(),
-                nn.Linear(dim_in_decoder, self.fc_out_channels)
+
+            avg_pool, dim_in_decoder = get_pool_layer(
+                inplanes, int(image_size // int(inplanes // 16)), hidden_dim
             )
-        if net_config == 'DGL':  # ref: https://github.com/eugenium/DGL/blob/master/auxiliary_nets_study/models.py
+            self.head = nn.Sequential(
+                avg_pool, nn.Flatten(), nn.Linear(dim_in_decoder, self.fc_out_channels)
+            )
+        if (
+            net_config == "DGL"
+        ):  # ref: https://github.com/eugenium/DGL/blob/master/auxiliary_nets_study/models.py
             if inplanes == 16:
                 size_dgl = image_size  # cifar10 / svhn
                 # size_dgl = 96 # stl10
@@ -104,13 +129,34 @@ class AuxNetwork(nn.Module):
                 mlp_feat = inplanes * (mlp_in_size) * (mlp_in_size)
                 self.head = nn.Sequential(
                     nn.AdaptiveAvgPool2d(math.ceil(size_dgl / 4)),
-                    nn.Conv2d(inplanes, inplanes, kernel_size=1, stride=1, padding=0, bias=False),
+                    nn.Conv2d(
+                        inplanes,
+                        inplanes,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                        bias=False,
+                    ),
                     nn.BatchNorm2d(inplanes),
                     nn.ReLU(),
-                    nn.Conv2d(inplanes, inplanes, kernel_size=1, stride=1, padding=0, bias=False),
+                    nn.Conv2d(
+                        inplanes,
+                        inplanes,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                        bias=False,
+                    ),
                     nn.BatchNorm2d(inplanes),
                     nn.ReLU(),
-                    nn.Conv2d(inplanes, inplanes, kernel_size=1, stride=1, padding=0, bias=False),
+                    nn.Conv2d(
+                        inplanes,
+                        inplanes,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                        bias=False,
+                    ),
                     nn.BatchNorm2d(inplanes),
                     nn.ReLU(),
                     nn.AdaptiveAvgPool2d(mlp_in_size),
@@ -130,13 +176,34 @@ class AuxNetwork(nn.Module):
                 mlp_feat = inplanes * (mlp_in_size) * (mlp_in_size)
                 self.head = nn.Sequential(
                     nn.AdaptiveAvgPool2d(math.ceil(size_dgl / 4)),
-                    nn.Conv2d(inplanes, inplanes, kernel_size=1, stride=1, padding=0, bias=False),
+                    nn.Conv2d(
+                        inplanes,
+                        inplanes,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                        bias=False,
+                    ),
                     nn.BatchNorm2d(inplanes),
                     nn.ReLU(),
-                    nn.Conv2d(inplanes, inplanes, kernel_size=1, stride=1, padding=0, bias=False),
+                    nn.Conv2d(
+                        inplanes,
+                        inplanes,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                        bias=False,
+                    ),
                     nn.BatchNorm2d(inplanes),
                     nn.ReLU(),
-                    nn.Conv2d(inplanes, inplanes, kernel_size=1, stride=1, padding=0, bias=False),
+                    nn.Conv2d(
+                        inplanes,
+                        inplanes,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                        bias=False,
+                    ),
                     nn.BatchNorm2d(inplanes),
                     nn.ReLU(),
                     nn.AdaptiveAvgPool2d(mlp_in_size),
@@ -156,13 +223,34 @@ class AuxNetwork(nn.Module):
                 mlp_feat = inplanes * (mlp_in_size) * (mlp_in_size)
                 self.head = nn.Sequential(
                     nn.AdaptiveAvgPool2d(math.ceil(size_dgl / 4)),
-                    nn.Conv2d(inplanes, inplanes, kernel_size=1, stride=1, padding=0, bias=False),
+                    nn.Conv2d(
+                        inplanes,
+                        inplanes,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                        bias=False,
+                    ),
                     nn.BatchNorm2d(inplanes),
                     nn.ReLU(),
-                    nn.Conv2d(inplanes, inplanes, kernel_size=1, stride=1, padding=0, bias=False),
+                    nn.Conv2d(
+                        inplanes,
+                        inplanes,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                        bias=False,
+                    ),
                     nn.BatchNorm2d(inplanes),
                     nn.ReLU(),
-                    nn.Conv2d(inplanes, inplanes, kernel_size=1, stride=1, padding=0, bias=False),
+                    nn.Conv2d(
+                        inplanes,
+                        inplanes,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                        bias=False,
+                    ),
                     nn.BatchNorm2d(inplanes),
                     nn.ReLU(),
                     nn.AdaptiveAvgPool2d(mlp_in_size),
@@ -175,41 +263,62 @@ class AuxNetwork(nn.Module):
                     nn.ReLU(),
                     nn.Linear(mlp_feat, self.fc_out_channels),
                 )
-        if net_config == 'InfoPro':
+        if net_config == "InfoPro":
             if inplanes == 16:
                 self.head = nn.Sequential(
-                    nn.Conv2d(16, int(32 * widen), kernel_size=3, stride=2, padding=1, bias=False),
+                    nn.Conv2d(
+                        16,
+                        int(32 * widen),
+                        kernel_size=3,
+                        stride=2,
+                        padding=1,
+                        bias=False,
+                    ),
                     nn.BatchNorm2d(int(32 * widen)),
                     nn.ReLU(),
                     nn.AdaptiveAvgPool2d((1, 1)),
                     nn.Flatten(),
                     nn.Linear(int(32 * widen), int(128 * widen)),
                     nn.ReLU(inplace=True),
-                    nn.Linear(int(128 * widen), self.fc_out_channels)
+                    nn.Linear(int(128 * widen), self.fc_out_channels),
                 )
             elif inplanes == 32:
                 self.head = nn.Sequential(
-                    nn.Conv2d(32, int(64 * widen), kernel_size=3, stride=2, padding=1, bias=False),
+                    nn.Conv2d(
+                        32,
+                        int(64 * widen),
+                        kernel_size=3,
+                        stride=2,
+                        padding=1,
+                        bias=False,
+                    ),
                     nn.BatchNorm2d(int(64 * widen)),
                     nn.ReLU(),
                     nn.AdaptiveAvgPool2d((1, 1)),
                     nn.Flatten(),
                     nn.Linear(int(64 * widen), int(128 * widen)),
                     nn.ReLU(inplace=True),
-                    nn.Linear(int(128 * widen), self.fc_out_channels)
+                    nn.Linear(int(128 * widen), self.fc_out_channels),
                 )
             elif inplanes == 64:
                 self.head = nn.Sequential(
-                    nn.Conv2d(64, int(64 * widen), kernel_size=3, stride=1, padding=1, bias=False),
+                    nn.Conv2d(
+                        64,
+                        int(64 * widen),
+                        kernel_size=3,
+                        stride=1,
+                        padding=1,
+                        bias=False,
+                    ),
                     nn.BatchNorm2d(int(64 * widen)),
                     nn.ReLU(),
                     nn.AdaptiveAvgPool2d((1, 1)),
                     nn.Flatten(),
                     nn.Linear(int(64 * widen), int(128 * widen)),
                     nn.ReLU(inplace=True),
-                    nn.Linear(int(128 * widen), self.fc_out_channels)
+                    nn.Linear(int(128 * widen), self.fc_out_channels),
                 )
-        if net_config == 'unifSamp':
+        if net_config == "unifSamp":
             # net_dim = [16] * 6 + [32] * 5 + [64] * 5 # resnet32
             # net_dim = [16] * 19 + [32] * 18 + [64] * 18 # resnet110
             n_layers = len(net_dim)
@@ -218,81 +327,151 @@ class AuxNetwork(nn.Module):
                 # raise NotImplementedError
                 aux_layer_index = [i for i in range(layer_index + 1, n_layers)]
             else:
-                aux_layer_index = [round(layer_index + (n_layers - layer_index - 1) / aux_net_depth * i) for i in
-                                   range(1, aux_net_depth + 1)]
+                aux_layer_index = [
+                    round(
+                        layer_index + (n_layers - layer_index - 1) / aux_net_depth * i
+                    )
+                    for i in range(1, aux_net_depth + 1)
+                ]
             aux_net = []
             num_pool = 0
             aux_planes = inplanes
             for index_i in aux_layer_index:
                 assert net_dim[index_i] >= inplanes
-                num_pool = num_pool + int(torch.log2(torch.tensor(int(net_dim[index_i] // inplanes))))
+                num_pool = num_pool + int(
+                    torch.log2(torch.tensor(int(net_dim[index_i] // inplanes)))
+                )
                 if num_pool >= 1:
                     stride = 2
                     num_pool -= 1
                 else:
                     stride = 1
-                aux_net.append(self._make_layer(inplanes, int(net_dim[index_i] * widen), stride=stride))
+                aux_net.append(
+                    self._make_layer(
+                        inplanes, int(net_dim[index_i] * widen), stride=stride
+                    )
+                )
                 inplanes = int(net_dim[index_i] * widen)
                 aux_planes = net_dim[index_i]
             if aux_net_depth <= 1:
-                aux_net.extend([nn.AdaptiveAvgPool2d((1, 1)),
-                                nn.Flatten(),
-                                nn.BatchNorm1d(int(aux_planes * widen)),
-                                nn.Linear(int(aux_planes * widen), self.fc_out_channels)])
+                aux_net.extend(
+                    [
+                        nn.AdaptiveAvgPool2d((1, 1)),
+                        nn.Flatten(),
+                        nn.BatchNorm1d(int(aux_planes * widen)),
+                        nn.Linear(int(aux_planes * widen), self.fc_out_channels),
+                    ]
+                )
             else:
-                aux_net.extend([nn.AdaptiveAvgPool2d((1, 1)),
-                                nn.Flatten(),
-                                nn.Linear(int(aux_planes * widen), self.fc_out_channels)])
+                aux_net.extend(
+                    [
+                        nn.AdaptiveAvgPool2d((1, 1)),
+                        nn.Flatten(),
+                        nn.Linear(int(aux_planes * widen), self.fc_out_channels),
+                    ]
+                )
             self.head = nn.Sequential(*aux_net)
-        if net_config == '0c1f':
+        if net_config == "0c1f":
             self.head = nn.Sequential(
                 nn.AdaptiveAvgPool2d((1, 1)),
                 nn.Flatten(),
                 nn.Linear(int(inplanes * widen), self.fc_out_channels),
             )
 
+        self.layer_index = layer_index
+
     def _make_layer(self, inplanes, planes, stride=1):
         block = BasicBlock
         downsample = None
         if stride != 1 or inplanes != planes * block.expansion:
             downsample = nn.Sequential(
-                nn.Conv2d(inplanes, planes * block.expansion, kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(planes * block.expansion)
+                nn.Conv2d(
+                    inplanes,
+                    planes * block.expansion,
+                    kernel_size=1,
+                    stride=stride,
+                    bias=False,
+                ),
+                nn.BatchNorm2d(planes * block.expansion),
             )
         return block(inplanes, planes, stride, downsample)
 
-    def forward(self, x, target=None):
+    def forward(self, x, target=None, log_classes=False):
         features = self.head(x)
         loss = self.criterion(features, target)
+
+        # if log_classes:
+        #     # Step 1: Calculate predictions
+        #     _, predictions = torch.max(features, 1)
+
+        #     # Initialize tensors to store per-class accuracies and counts
+        #     class_correct = torch.zeros(target.max() + 1).to(target.device)
+        #     class_totals = torch.zeros_like(class_correct)
+
+        #     # Compare predictions to true label
+        #     correct = predictions.eq(target)
+
+        #     for i in range(len(target)):
+        #         label = target[i]
+        #         class_correct[label] += correct[i].item()
+        #         class_totals[label] += 1
+
+        #     # Step 2: Calculate accuracies per class
+        #     class_accuracies = class_correct / class_totals
+
+        #     # Step 4: Log the information
+        #     logging.info(f"Layer {self.layer_index}")
+        #     for i, acc in enumerate(class_accuracies):
+        #         if torch.isnan(acc):  # Skip classes not present in the batch
+        #             continue
+        #         logging.info(f"Class {i}: Accuracy = {acc:.2f}")
+
         return loss, features.detach()
 
 
 class Decoder_InfoPro(nn.Module):
-    def __init__(self, inplanes, image_size, interpolate_mode='bilinear', net_config='1c2f', widen=1, layer_index=0,
-                 aux_net_depth=3, net_dim=None):
+    def __init__(
+        self,
+        inplanes,
+        image_size,
+        interpolate_mode="bilinear",
+        net_config="1c2f",
+        widen=1,
+        layer_index=0,
+        aux_net_depth=3,
+        net_dim=None,
+    ):
         super(Decoder_InfoPro, self).__init__()
         self.image_size = image_size
-        assert interpolate_mode in ['bilinear', 'nearest']
+        assert interpolate_mode in ["bilinear", "nearest"]
         self.interpolate_mode = interpolate_mode
         self.bce_loss = nn.BCELoss()
 
-        if net_config == '4c':
+        if net_config == "4c":
             self.decoder = nn.Sequential(
-                nn.Conv2d(inplanes, int(12 * widen), kernel_size=3, stride=1, padding=1),
+                nn.Conv2d(
+                    inplanes, int(12 * widen), kernel_size=3, stride=1, padding=1
+                ),
                 nn.BatchNorm2d(int(12 * widen)),
                 nn.ReLU(),
-                nn.Conv2d(int(12 * widen), int(12 * widen), kernel_size=3, stride=1, padding=1),
+                nn.Conv2d(
+                    int(12 * widen), int(12 * widen), kernel_size=3, stride=1, padding=1
+                ),
                 nn.BatchNorm2d(int(12 * widen)),
                 nn.ReLU(),
-                nn.Conv2d(int(12 * widen), int(12 * widen), kernel_size=3, stride=1, padding=1),
+                nn.Conv2d(
+                    int(12 * widen), int(12 * widen), kernel_size=3, stride=1, padding=1
+                ),
                 nn.BatchNorm2d(int(12 * widen)),
                 nn.ReLU(),
                 nn.Conv2d(int(12 * widen), 3, kernel_size=3, stride=1, padding=1),
                 nn.Sigmoid(),
             )
-        elif net_config == '2c':
+        elif net_config == "2c":
             self.decoder = nn.Sequential(
-                nn.Conv2d(inplanes, int(12 * widen), kernel_size=3, stride=1, padding=1),
+                nn.Conv2d(
+                    inplanes, int(12 * widen), kernel_size=3, stride=1, padding=1
+                ),
                 nn.BatchNorm2d(int(12 * widen)),
                 nn.ReLU(),
                 nn.Conv2d(int(12 * widen), 3, kernel_size=3, stride=1, padding=1),
@@ -302,12 +481,17 @@ class Decoder_InfoPro(nn.Module):
             raise NotImplementedError
 
     def forward(self, features, image_ori):
-        if self.interpolate_mode == 'bilinear':
-            features = F.interpolate(features, size=[self.image_size, self.image_size],
-                                     mode='bilinear', align_corners=True)
-        elif self.interpolate_mode == 'nearest':  # might be faster
-            features = F.interpolate(features, size=[self.image_size, self.image_size],
-                                     mode='nearest')
+        if self.interpolate_mode == "bilinear":
+            features = F.interpolate(
+                features,
+                size=[self.image_size, self.image_size],
+                mode="bilinear",
+                align_corners=True,
+            )
+        elif self.interpolate_mode == "nearest":  # might be faster
+            features = F.interpolate(
+                features, size=[self.image_size, self.image_size], mode="nearest"
+            )
         else:
             raise NotImplementedError
 
@@ -318,8 +502,14 @@ class Decoder_InfoPro(nn.Module):
         downsample = None
         if stride != 1 or inplanes != planes * block.expansion:
             downsample = nn.Sequential(
-                nn.Conv2d(inplanes, planes * block.expansion, kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(planes * block.expansion)
+                nn.Conv2d(
+                    inplanes,
+                    planes * block.expansion,
+                    kernel_size=1,
+                    stride=stride,
+                    bias=False,
+                ),
+                nn.BatchNorm2d(planes * block.expansion),
             )
 
         return block(inplanes, planes, stride, downsample)
@@ -330,7 +520,9 @@ class Decoder_PredSim(nn.Module):
         super(Decoder_PredSim, self).__init__()
         self.sim_loss = SimLoss(classes=class_num)
         self.decoder = nn.Sequential(
-            nn.Conv2d(inplanes, inplanes, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.Conv2d(
+                inplanes, inplanes, kernel_size=3, stride=1, padding=1, bias=False
+            ),
         )
 
     def forward(self, features, y):

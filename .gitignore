@@ -1,1 +1,7 @@
 .idea
+
+*.png
+datasets/
+
+__pycache__/
+2024-*
